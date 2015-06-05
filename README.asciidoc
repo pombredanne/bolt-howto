@@ -64,15 +64,46 @@ def handshake(host, port):
 ----
 
 
-== 3. Construct some messages
+== 3. Send a request
+
+=== 3.1. Prepare messages
+
+[source,python]
+----
+log.info("Running statement %r with parameters %r" % (statement, parameters))
+self._send((RUN, (statement, parameters)),
+           (PULL_ALL, ()))
+----
+
+=== 3.2. Pack messages into bytes
+
+[source,python]
+----
+def _send(self, *messages):
+    """ Send one or more messages to the server.
+    """
+    raw = ChunkedIO()
+    packer = Packer(raw)
+    
+    for message in messages:
+        packer.pack(message)
+        raw.flush(zero_chunk=True)
+
+    data = raw.getvalue()
+    log.debug("Sending request data: %r" % data)
+    self.socket.sendall(data)
+    
+    raw.close()
+----
+
+=== 3.3. Split into chunks and send
 
 
-== 4. Chunk and send
+== 4. Receive the responses
 
+=== 4.1. Receive and collect chunks
 
-== 5. Receive the responses
+=== 4.2. Unpack messages from bytes
 
-
-== 6. Hydrate the values returned
-
+=== 4.3. Interpret results
 

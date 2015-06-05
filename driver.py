@@ -148,6 +148,7 @@ class Connection(object):
         log.info("Running statement %r with parameters %r" % (statement, parameters))
         self._send((RUN, (statement, parameters)),
                    (PULL_ALL, ()))
+
         signature, (data,) = self._recv()
         if signature == SUCCESS:
             fields = data["fields"]
