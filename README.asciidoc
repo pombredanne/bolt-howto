@@ -1,0 +1,43 @@
+= How to Build an NDP Driver
+
+This guide will show you how to build a NDP client driver for Neo4j from scratch.
+The example code here is written in Python but the same principles should apply for any language.
+The only requirements for a driver project are raw socket capabilities so most languages should need no external library support.
+
+
+== 1. Download and install the server
+
+
+== 2. Perform a handshake
+
+[source,python]
+----
+def handshake(host, port):
+    """ Perform a handshake with the aim of returning a valid
+    Connection object if a protocol version can be agreed.
+    """
+
+    # Establish a connection to the host and port specified
+    print("Creating connection to %s on port %d" % (host, port))
+    s = socket.create_connection((host, port))
+    
+    # Send details of the protocol versions supported
+    supported_versions = [1, 0, 0, 0]
+    print("Supported protocol versions are: %r" % supported_versions)
+    data = b"".join(struct.pack(">I", version) for version in supported_versions)
+    print("Sending handshake data: %r" % data)
+    s.sendall(data)
+    
+    # Handle the handshake response
+    data = s.recv(4)
+    print("Received handshake data: %r" % data)
+    agreed_version, = struct.unpack(">I", data)
+    if agreed_version == 0:
+        print("Closing connection as no protocol version could be agreed")
+        s.shutdown(socket.SHUT_RDWR)
+        s.close()
+    else:
+        print("Protocol version %d agreed" % agreed_version)
+        return Connection(s)
+----
+
