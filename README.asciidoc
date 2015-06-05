@@ -4,11 +4,33 @@ This guide will show you how to build a NDP client driver for Neo4j from scratch
 The example code here is written in Python but the same principles should apply for any language.
 The only requirements for a driver project are raw socket capabilities so most languages should need no external library support.
 
+NOTE: All values are sent and received in big-endian order unless otherwise noted.
+
 
 == 1. Download and install the server
 
 
 == 2. Perform a handshake
+
+The handshake is used to determine which version of NDP should be used for that session.
+This takes the form of an exchange of protocol version numbers, each represented as a 32-bit unsigned integer.
+Firstly, the client sends exactly four possible version numbers in order of preference, using zeroes to pad if necessary.
+In return, the server responds with its selection.
+If no agreement can be made, the server responds with zero and closes the connection.
+
+In the example below, the client offers protocol version 1 only:
+
+----
+Client: 00:00:00:01 00:00:00:00 00:00:00:00 00:00:00:00
+----
+
+The server then responds agreeably with version 1 as its selection:
+
+----
+Server: 00:00:00:01
+----
+
+The following code demonstrates how this exchange can be carried out:
 
 [source,python]
 ----
@@ -18,26 +40,39 @@ def handshake(host, port):
     """
 
     # Establish a connection to the host and port specified
-    print("Creating connection to %s on port %d" % (host, port))
+    log.info("Creating connection to %s on port %d" % (host, port))
     s = socket.create_connection((host, port))
     
     # Send details of the protocol versions supported
     supported_versions = [1, 0, 0, 0]
-    print("Supported protocol versions are: %r" % supported_versions)
+    log.info("Supported protocol versions are: %r" % supported_versions)
     data = b"".join(struct.pack(">I", version) for version in supported_versions)
-    print("Sending handshake data: %r" % data)
+    log.debug("Sending handshake data: %r" % data)
     s.sendall(data)
     
     # Handle the handshake response
     data = s.recv(4)
-    print("Received handshake data: %r" % data)
+    log.debug("Received handshake data: %r" % data)
     agreed_version, = struct.unpack(">I", data)
     if agreed_version == 0:
-        print("Closing connection as no protocol version could be agreed")
+        log.warning("Closing connection as no protocol version could be agreed")
         s.shutdown(socket.SHUT_RDWR)
         s.close()
     else:
-        print("Protocol version %d agreed" % agreed_version)
+        log.info("Protocol version %d agreed" % agreed_version)
         return Connection(s)
 ----
+
+
+== 3. Construct some messages
+
+
+== 4. Chunk and send
+
+
+== 5. Receive the responses
+
+
+== 6. Hydrate the values returned
+
 
