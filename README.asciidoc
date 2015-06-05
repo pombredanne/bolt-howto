@@ -34,8 +34,8 @@ The following code demonstrates how this exchange can be carried out:
 
 [source,python]
 ----
-def handshake(host, port):
-    """ Perform a handshake with the aim of returning a valid
+def connect(host, port):
+    """ Connect and perform a handshake in order to return a valid
     Connection object if a protocol version can be agreed.
     """
 

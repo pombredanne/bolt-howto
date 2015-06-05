@@ -179,8 +179,8 @@ class Connection(object):
         self.socket.close()
 
 
-def handshake(host, port):
-    """ Perform a handshake with the aim of returning a valid
+def connect(host, port):
+    """ Connect and perform a handshake in order to return a valid
     Connection object if a protocol version can be agreed.
     """
 
@@ -264,7 +264,7 @@ def main():
         level = logging.INFO if args.verbose == 1 else logging.DEBUG
         Watcher("neo4j").watch(level, sys.stderr)
 
-    conn = handshake(args.host, args.port)
+    conn = connect(args.host, args.port)
     if conn:
         fields, records = conn.run(args.statement, {})
         sys.stdout.write("%s\r\n" % "\t".join(fields))
