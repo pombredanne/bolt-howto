@@ -182,8 +182,8 @@ class Connection(object):
             fields = data["fields"]
             log.info("Statement ran successfully with field list %r" % fields)
         else:
+            self._recv()  # The PULL_ALL response should be IGNORED
             raise RuntimeError("RUN was unsuccessful: %r" % data)
-            self._recv()
         
         records = []
         more = True
