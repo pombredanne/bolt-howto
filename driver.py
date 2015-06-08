@@ -30,6 +30,7 @@ from packstream import Packer, Unpacker
 
 
 # Signature bytes for each message type
+INIT = b"\x01"             # 0000 1111 // INIT <user_agent>
 ACK_FAILURE = b"\x0F"      # 0000 1111 // ACK_FAILURE
 RUN = b"\x10"              # 0001 0000 // RUN <statement> <parameters>
 DISCARD_ALL = b"\x2F"      # 0010 1111 // DISCARD *
@@ -104,8 +105,9 @@ class Connection(object):
     """
 
     def __init__(self, s):
-        log.info("NDPv1 connection established!")
         self.socket = s
+        log.info("NDPv1 connection established!")
+        self.init("ExampleDriver/1.0")
     
     def _send(self, *messages):
         """ Send one or more messages to the server.
@@ -153,6 +155,15 @@ class Connection(object):
 
         return message
 
+    def init(self, user_agent):
+        log.info("Initialising connection")
+        self._send((INIT, (user_agent,)))
+
+        signature, (data,) = self._recv()
+        if signature == SUCCESS:
+            log.info("Initialisation successful")
+        else:
+            raise RuntimeError("INIT was unsuccessful: %r" % data)
 
     def run(self, statement, parameters):
         """ Run a parameterised Cypher statement.
@@ -171,7 +182,7 @@ class Connection(object):
             fields = data["fields"]
             log.info("Statement ran successfully with field list %r" % fields)
         else:
-            raise RuntimeError("RUN was unsuccessful: %r" % metadata)
+            raise RuntimeError("RUN was unsuccessful: %r" % data)
             self._recv()
         
         records = []
