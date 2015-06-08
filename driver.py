@@ -30,7 +30,7 @@ from packstream import Packer, Unpacker
 
 
 # Signature bytes for each message type
-INIT = b"\x01"             # 0000 1111 // INIT <user_agent>
+INIT = b"\x01"             # 0000 0001 // INIT <user_agent>
 ACK_FAILURE = b"\x0F"      # 0000 1111 // ACK_FAILURE
 RUN = b"\x10"              # 0001 0000 // RUN <statement> <parameters>
 DISCARD_ALL = b"\x2F"      # 0010 1111 // DISCARD *
@@ -184,7 +184,7 @@ class Connection(object):
         else:
             self._recv()  # The PULL_ALL response should be IGNORED
             raise RuntimeError("RUN was unsuccessful: %r" % data)
-        
+
         records = []
         more = True
         while more:
