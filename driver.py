@@ -156,6 +156,8 @@ class Connection(object):
         return message
 
     def init(self, user_agent):
+        """ Initialise a connection with a user agent string.
+        """
         log.info("Initialising connection")
         self._send((INIT, (user_agent,)))
 
