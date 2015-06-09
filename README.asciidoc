@@ -9,6 +9,9 @@ NOTE: All values are sent and received in big-endian order unless otherwise note
 
 == 1. Download and install the server
 
+Alpha releases of Neo4j 3.0 can be found at http://alpha.neotechnology.com.s3-website-eu-west-1.amazonaws.com/.
+These contain a version of NDP that listens by default on port 7687.
+
 
 == 2. Perform a handshake
 
