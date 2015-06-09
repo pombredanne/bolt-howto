@@ -90,22 +90,22 @@ def connect(host, port):
 
     # Establish a connection to the host and port specified
     log.info("Creating connection to %s on port %d" % (host, port))
-    s = socket.create_connection((host, port))
-    
+    s = create_connection((host, port))
+
     # Send details of the protocol versions supported
     supported_versions = [1, 0, 0, 0]
     log.info("Supported protocol versions are: %r" % supported_versions)
     data = b"".join(struct.pack(">I", version) for version in supported_versions)
     log.debug("Sending handshake data: %r" % data)
     s.sendall(data)
-    
+
     # Handle the handshake response
     data = s.recv(4)
     log.debug("Received handshake data: %r" % data)
     agreed_version, = struct.unpack(">I", data)
     if agreed_version == 0:
         log.warning("Closing connection as no protocol version could be agreed")
-        s.shutdown(socket.SHUT_RDWR)
+        s.shutdown(SHUT_RDWR)
         s.close()
     else:
         log.info("Protocol version %d agreed" % agreed_version)
