@@ -7,13 +7,13 @@ The only requirements for a driver project are raw socket capabilities so most l
 NOTE: All values are sent and received in big-endian order unless otherwise noted.
 
 
-== 1. Download and install the server
+== 0. Downloading the server
 
 Alpha releases of Neo4j 3.0 can be found at http://alpha.neotechnology.com.s3-website-eu-west-1.amazonaws.com/.
 These contain a version of NDP that listens by default on port 7687.
 
 
-== 2. Perform a handshake
+== 1. Performing a handshake
 
 The handshake is used to determine which version of NDP should be used for that session.
 This takes the form of an exchange of protocol version numbers, each represented as a 32-bit unsigned integer.
@@ -63,50 +63,166 @@ def connect(host, port):
         s.close()
     else:
         log.info("Protocol version %d agreed" % agreed_version)
-        return Connection(s)
+        return ConnectionV1(s)
 ----
 
 
-== 3. Send a request
-
-=== 3.1. Prepare messages
+== 2. Initialising the session
 
 [source,python]
 ----
-log.info("Running statement %r with parameters %r" % (statement, parameters))
-self._send((RUN, (statement, parameters)),
-           (PULL_ALL, ()))
-----
-
-=== 3.2. Pack messages into bytes
-
-[source,python]
-----
-def _send(self, *messages):
-    """ Send one or more messages to the server.
+class ConnectionV1(object):
+    """ Server connection through which all protocol messages
+    are sent and received. This class is designed for protocol
+    version 1.
     """
-    raw = ChunkedIO()
-    packer = Packer(raw)
-    
-    for message in messages:
-        packer.pack(message)
-        raw.flush(zero_chunk=True)
 
-    data = raw.getvalue()
-    log.debug("Sending request data: %r" % data)
-    self.socket.sendall(data)
-    
-    raw.close()
+    def __init__(self, s):
+        self.socket = s
+        log.info("NDPv1 connection established!")
+        self.init("ExampleDriver/1.0")
+
+    def init(self, user_agent):
+        """ Initialise a connection with a user agent string.
+        """
+        log.info("Initialising connection")
+        self._send((INIT, (user_agent,)))
+
+        signature, (data,) = self._recv()
+        if signature == SUCCESS:
+            log.info("Initialisation successful")
+        else:
+            raise ProtocolError("INIT was unsuccessful: %r" % data)
 ----
 
-=== 3.3. Split into chunks and send
+
+=== 2.1. Sending a request
+
+[source,python]
+----
+    def _send(self, *messages):
+        """ Send one or more messages to the server.
+        """
+        raw = ChunkedIO()
+        packer = Packer(raw)
+
+        for message in messages:
+            packer.pack(message)
+            raw.flush(zero_chunk=True)
+
+        data = raw.getvalue()
+        log.debug("Sending request data: %r" % data)
+        self.socket.sendall(data)
+
+        raw.close()
+----
 
 
-== 4. Receive the responses
+=== 2.2. Packing messages as bytes
 
-=== 4.1. Receive and collect chunks
+TODO
 
-=== 4.2. Unpack messages from bytes
 
-=== 4.3. Interpret results
+=== 2.3. Splitting into chunks
 
+TODO
+
+
+=== 2.4. Receiving a response (in chunks)
+
+[source,python]
+----
+    def _recv(self):
+        """ Receive exactly one message from the server.
+        """
+        raw = BytesIO()
+        unpack = Unpacker(raw).unpack
+
+        # Receive chunks of data until chunk_size == 0
+        more = True
+        while more:
+            # Receive chunk header to establish size of chunk that follows
+            chunk_header = self.socket.recv(2)
+            log.debug("Received chunk header data: %r" % chunk_header)
+            chunk_size, = struct.unpack_from(">H", chunk_header)
+
+            # Receive chunk data
+            if chunk_size > 0:
+                chunk_data = self.socket.recv(chunk_size)
+                log.debug("Received chunk data: %r" % chunk_data)
+                raw.write(chunk_data)
+            else:
+                more = False
+
+        # Unpack the message structure from the raw byte stream
+        # (there should be only one)
+        raw.seek(0)
+        signature, fields = next(unpack())
+        raw.close()
+
+        # Acknowledge failure immediately
+        if signature == FAILURE:
+            self.ack_failure()
+
+        return signature, fields
+----
+
+
+=== 2.5. Unpacking messages from bytes
+
+TODO
+
+
+=== 2.6. SUCCESS and FAILURE
+
+TODO
+
+
+== 3. Running a Cypher statement
+
+[source,python]
+----
+    def run(self, statement, parameters):
+        """ Run a parameterised Cypher statement.
+        """
+
+        # Ensure the statement is a Unicode value
+        if isinstance(statement, bytes):
+            statement = statement.decode("UTF-8")
+
+        log.info("Running statement %r with parameters %r" % (statement, parameters))
+        self._send((RUN, (statement, parameters)),
+                   (PULL_ALL, ()))
+
+        signature, (data,) = self._recv()
+        if signature == SUCCESS:
+            fields = tuple(data["fields"])
+            log.info("Statement ran successfully with field list %r" % (fields,))
+        else:
+            raise CypherError(data)
+
+        records = []
+        more = True
+        while more:
+            signature, (data,) = self._recv()
+            if signature == RECORD:
+                log.info("Record received with value list %r" % data)
+                records.append(tuple(map(hydrated, data)))
+            elif signature == SUCCESS:
+                log.info("All records successfully received: %r" % data)
+                more = False
+            else:
+                raise CypherError(data)
+
+        return fields, records
+----
+
+
+=== 3.1. RECORD messages
+
+TODO
+
+
+== 4. Acknowledging failure
+
+TODO

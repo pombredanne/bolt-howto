@@ -229,9 +229,10 @@ class ChunkedIO(BytesIO):
         BytesIO.close(self)
 
 
-class Connection(object):
+class ConnectionV1(object):
     """ Server connection through which all protocol messages
-    are sent and received.
+    are sent and received. This class is designed for protocol
+    version 1.
     """
 
     def __init__(self, s):
@@ -386,7 +387,7 @@ def connect(host, port):
         s.close()
     else:
         log.info("Protocol version %d agreed" % agreed_version)
-        return Connection(s)
+        return ConnectionV1(s)
 
 
 class ColourFormatter(logging.Formatter):
