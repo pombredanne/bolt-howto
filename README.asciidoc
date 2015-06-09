@@ -115,6 +115,9 @@ def connect(host, port):
 
 == 2. Initialising the session
 
+Each session must first be initialised by sending an INIT message to the server containing a user agent string.
+If successful, a SUCCESS message will be returned.
+
 [source,python]
 ----
 class ConnectionV1(object):
@@ -144,6 +147,9 @@ class ConnectionV1(object):
 
 === 2.1. Sending a request
 
+Each message sent and received is serialised as a structure and transmitted in chunks for efficiency.
+A zero-length chunk is used to signal the end of a message.
+
 [source,python]
 ----
     def _send(self, *messages):
@@ -166,7 +172,12 @@ class ConnectionV1(object):
 
 === 2.2. Packing messages as bytes
 
-TODO
+NDP uses a custom serialisation format, called link:packstream.py[PackStream].
+This is based heavily on MessagePack but can model any Cypher data type though its _structure_ mechanism.
+Structures are also used to represent messages, with each carrying a signature byte that denotes type.
+The INIT message is structured as follows:
+
+image::images/init.png[]
 
 
 === 2.3. Splitting into chunks
