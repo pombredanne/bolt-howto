@@ -182,7 +182,11 @@ image::images/init.png[]
 
 === 2.3. Splitting into chunks
 
-TODO
+On the wire, messages are split into chunks for efficient sending and receiving of data.
+Each chunk consists of a two-byte header containing the amount of data in bytes followed by the bytes themselves.
+A zero-length chunk signifies the end of a message:
+
+image::images/chunked-init.png[]
 
 
 === 2.4. Receiving a response (in chunks)
