@@ -324,12 +324,39 @@ Without this, the non-blocking `recv` method may return an empty value if called
 
 === 2.5. Unpacking messages from bytes
 
-TODO
+Once a full message has been received, it must be unpacked from raw bytes into a PackStream structure.
+Each message structure contains a signature byte and a set of fields that correspond to the message type.
 
+The table below shows all response messages that may be sent by the server:
 
-=== 2.6. SUCCESS and FAILURE
+[cols="^10,<20,<60,^10",options="header"]
+|===
+| Signature | Message | Description | Type
 
-TODO
+| `0x70`
+| SUCCESS <metadata>
+| Mark a successful exchange
+| summary
+
+| `0x71`
+| RECORD <values>
+| Deliver a single record
+| detail
+
+| `0x7E`
+| IGNORED <metadata>
+| Mark an ignored exchange due to a previous unacknowledged failure
+| summary
+
+| `0x7F`
+| FAILURE <metadata>
+| Mark a failed exchange
+| summary
+|===
+
+Each request message sent will result in a single summary message in response.
+For initialisation, this will be either a SUCCESS or a FAILURE message.
+Other message types may be returned for subsequent exchanges.
 
 
 == 3. Running a Cypher statement
