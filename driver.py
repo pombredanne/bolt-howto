@@ -24,7 +24,7 @@ from io import BytesIO
 import logging
 import socket
 import struct
-import sys
+from sys import stdout, stderr
 
 from packstream import Packer, Unpacker
 
@@ -41,6 +41,23 @@ IGNORED = b"\x7E"          # 0111 1110 // IGNORED <metadata>
 FAILURE = b"\x7F"          # 0111 1111 // FAILURE <metadata>
 
 log = logging.getLogger("neo4j")
+
+
+class ProtocolError(Exception):
+
+    pass
+
+
+class CypherError(Exception):
+
+    code = None
+    message = None
+
+    def __init__(self, data):
+        super(CypherError, self).__init__(data.get("message"))
+        for key, value in data.items():
+            if not key.startswith("_"):
+                setattr(self, key, value)
 
 
 class ChunkedIO(BytesIO):
@@ -150,10 +167,14 @@ class Connection(object):
         # Unpack the message structure from the raw byte stream
         # (there should be only one)
         raw.seek(0)
-        message = next(unpack())
+        signature, fields = next(unpack())
         raw.close()
 
-        return message
+        # Acknowledge failure immediately
+        if signature == FAILURE:
+            self.ack_failure()
+
+        return signature, fields
 
     def init(self, user_agent):
         """ Initialise a connection with a user agent string.
@@ -165,7 +186,7 @@ class Connection(object):
         if signature == SUCCESS:
             log.info("Initialisation successful")
         else:
-            raise RuntimeError("INIT was unsuccessful: %r" % data)
+            raise ProtocolError("INIT was unsuccessful: %r" % data)
 
     def run(self, statement, parameters):
         """ Run a parameterised Cypher statement.
@@ -184,8 +205,7 @@ class Connection(object):
             fields = data["fields"]
             log.info("Statement ran successfully with field list %r" % fields)
         else:
-            self._recv()  # The PULL_ALL response should be IGNORED
-            raise RuntimeError("RUN was unsuccessful: %r" % data)
+            raise CypherError(data)
 
         records = []
         more = True
@@ -199,11 +219,30 @@ class Connection(object):
                 log.info("All records successfully received: %r" % data)
                 more = False
             else:
-                raise RuntimeError("PULL_ALL was unsuccessful: %r" % data)
+                raise CypherError(data)
 
         return fields, records
 
+    def ack_failure(self):
+        """ Send an acknowledgement for a previous failure.
+        """
+        log.info("Acknowledging failure")
+        self._send((ACK_FAILURE, ()))
+
+        # Skip any ignored responses
+        signature, _ = self._recv()
+        while signature == IGNORED:
+            signature, _ = self._recv()
+
+        # Check the acknowledgement was successful
+        if signature == SUCCESS:
+            log.info("Acknowledgement successful")
+        else:
+            raise ProtocolError("ACK_FAILURE was unsuccessful")
+
     def close(self):
+        """ Shut down and close the connection.
+        """
         log.info("Shutting down and closing connection")
         self.socket.shutdown(socket.SHUT_RDWR)
         self.socket.close()
@@ -270,7 +309,7 @@ class Watcher(object):
         self.logger = logging.getLogger(self.logger_name)
         self.formatter = ColourFormatter("%(asctime)s  %(message)s")
 
-    def watch(self, level=logging.INFO, out=sys.stdout):
+    def watch(self, level=logging.INFO, out=stdout):
         try:
             self.logger.removeHandler(self.handlers[self.logger_name])
         except KeyError:
@@ -283,8 +322,8 @@ class Watcher(object):
 
 
 def main():
-    parser = ArgumentParser(description="Execute a Cypher statement over NDP.")
-    parser.add_argument("statement")
+    parser = ArgumentParser(description="Execute one or more Cypher statements using NDP.")
+    parser.add_argument("statement", nargs="+")
     parser.add_argument("-v", "--verbose", action="count")
     parser.add_argument("-H", "--host", default="localhost")
     parser.add_argument("-P", "--port", type=int, default=7687)
@@ -292,14 +331,20 @@ def main():
 
     if args.verbose:
         level = logging.INFO if args.verbose == 1 else logging.DEBUG
-        Watcher("neo4j").watch(level, sys.stderr)
+        Watcher("neo4j").watch(level, stderr)
 
     conn = connect(args.host, args.port)
     if conn:
-        fields, records = conn.run(args.statement, {})
-        sys.stdout.write("%s\r\n" % "\t".join(fields))
-        for record in records:
-            sys.stdout.write("%s\r\n" % "\t".join(map(repr, record)))
+        for statement in args.statement:
+            try:
+                fields, records = conn.run(statement, {})
+            except CypherError as error:
+                stderr.write("%s: %s\r\n" % (error.code, error.message))
+            else:
+                stdout.write("%s\r\n" % "\t".join(fields))
+                for record in records:
+                    stdout.write("%s\r\n" % "\t".join(map(repr, record)))
+                stdout.write("\r\n")
         conn.close()
 
 
