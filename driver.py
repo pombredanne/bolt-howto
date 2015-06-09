@@ -22,7 +22,8 @@
 from argparse import ArgumentParser
 from io import BytesIO
 import logging
-import socket
+from select import select
+from socket import create_connection, SHUT_RDWR
 import struct
 from sys import stdout, stderr
 
@@ -243,7 +244,7 @@ class ConnectionV1(object):
         log.info("NDPv1 connection established!")
         self.init("ExampleDriver/1.0")
 
-    def _send(self, *messages):
+    def _send_messages(self, *messages):
         """ Send one or more messages to the server.
         """
         raw = ChunkWriter()
@@ -259,7 +260,30 @@ class ConnectionV1(object):
 
         raw.close()
 
-    def _recv(self):
+    def _recv(self, size):
+        """ Receive a required number of bytes from the network.
+        """
+        socket = self.socket
+
+        # Try to read the required amount of data
+        data = socket.recv(size)
+        size -= len(data)
+
+        # If more is needed, keep reading until all data has been received
+        while size:
+            # Check for available network data
+            ready_to_read, _, _ = select((socket,), (), (), 0)
+            while not ready_to_read:
+                ready_to_read, _, _ = select((socket,), (), (), 0)
+
+            # Read up to the required amount remaining
+            b = socket.recv(size)
+            size -= len(b)
+            data += b
+
+        return data
+
+    def _recv_message(self):
         """ Receive exactly one message from the server.
         """
         raw = BytesIO()
@@ -269,13 +293,13 @@ class ConnectionV1(object):
         more = True
         while more:
             # Receive chunk header to establish size of chunk that follows
-            chunk_header = self.socket.recv(2)
+            chunk_header = self._recv(2)
             log.debug("Received chunk header data: %r" % chunk_header)
             chunk_size, = struct.unpack_from(">H", chunk_header)
 
             # Receive chunk data
             if chunk_size > 0:
-                chunk_data = self.socket.recv(chunk_size)
+                chunk_data = self._recv(chunk_size)
                 log.debug("Received chunk data: %r" % chunk_data)
                 raw.write(chunk_data)
             else:
@@ -297,9 +321,9 @@ class ConnectionV1(object):
         """ Initialise a connection with a user agent string.
         """
         log.info("Initialising connection")
-        self._send((INIT, (user_agent,)))
+        self._send_messages((INIT, (user_agent,)))
 
-        signature, (data,) = self._recv()
+        signature, (data,) = self._recv_message()
         if signature == SUCCESS:
             log.info("Initialisation successful")
         else:
@@ -314,10 +338,10 @@ class ConnectionV1(object):
             statement = statement.decode("UTF-8")
 
         log.info("Running statement %r with parameters %r" % (statement, parameters))
-        self._send((RUN, (statement, parameters)),
-                   (PULL_ALL, ()))
+        self._send_messages((RUN, (statement, parameters)),
+                            (PULL_ALL, ()))
 
-        signature, (data,) = self._recv()
+        signature, (data,) = self._recv_message()
         if signature == SUCCESS:
             fields = tuple(data["fields"])
             log.info("Statement ran successfully with field list %r" % (fields,))
@@ -327,7 +351,7 @@ class ConnectionV1(object):
         records = []
         more = True
         while more:
-            signature, (data,) = self._recv()
+            signature, (data,) = self._recv_message()
             if signature == RECORD:
                 log.info("Record received with value list %r" % data)
                 records.append(tuple(map(hydrated, data)))
@@ -343,12 +367,12 @@ class ConnectionV1(object):
         """ Send an acknowledgement for a previous failure.
         """
         log.info("Acknowledging failure")
-        self._send((ACK_FAILURE, ()))
+        self._send_messages((ACK_FAILURE, ()))
 
         # Skip any ignored responses
-        signature, _ = self._recv()
+        signature, _ = self._recv_message()
         while signature == IGNORED:
-            signature, _ = self._recv()
+            signature, _ = self._recv_message()
 
         # Check the acknowledgement was successful
         if signature == SUCCESS:
@@ -360,7 +384,7 @@ class ConnectionV1(object):
         """ Shut down and close the connection.
         """
         log.info("Shutting down and closing connection")
-        self.socket.shutdown(socket.SHUT_RDWR)
+        self.socket.shutdown(SHUT_RDWR)
         self.socket.close()
 
 
@@ -371,7 +395,7 @@ def connect(host, port):
 
     # Establish a connection to the host and port specified
     log.info("Creating connection to %s on port %d" % (host, port))
-    s = socket.create_connection((host, port))
+    s = create_connection((host, port))
 
     # Send details of the protocol versions supported
     supported_versions = [1, 0, 0, 0]
@@ -386,7 +410,7 @@ def connect(host, port):
     agreed_version, = struct.unpack(">I", data)
     if agreed_version == 0:
         log.warning("Closing connection as no protocol version could be agreed")
-        s.shutdown(socket.SHUT_RDWR)
+        s.shutdown(SHUT_RDWR)
         s.close()
     else:
         log.info("Protocol version %d agreed" % agreed_version)

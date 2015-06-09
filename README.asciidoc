@@ -152,7 +152,7 @@ A zero-length chunk is used to signal the end of a message.
 
 [source,python]
 ----
-    def _send(self, *messages):
+    def _send_messages(self, *messages):
         """ Send one or more messages to the server.
         """
         raw = ChunkWriter()
@@ -259,7 +259,30 @@ When a `00 00` chunk header is encountered, the chunks for that message can be c
 
 [source,python]
 ----
-    def _recv(self):
+    def _recv(self, size):
+        """ Receive a required number of bytes from the network.
+        """
+        socket = self.socket
+
+        # Try to read the required amount of data
+        data = socket.recv(size)
+        size -= len(data)
+
+        # If more is needed, keep reading until all data has been received
+        while size:
+            # Check for available network data
+            ready_to_read, _, _ = select((socket,), (), (), 0)
+            while not ready_to_read:
+                ready_to_read, _, _ = select((socket,), (), (), 0)
+
+            # Read up to the required amount remaining
+            b = socket.recv(size)
+            size -= len(b)
+            data += b
+
+        return data
+
+    def _recv_message(self):
         """ Receive exactly one message from the server.
         """
         raw = BytesIO()
@@ -269,13 +292,13 @@ When a `00 00` chunk header is encountered, the chunks for that message can be c
         more = True
         while more:
             # Receive chunk header to establish size of chunk that follows
-            chunk_header = self.socket.recv(2)
+            chunk_header = self._recv(2)
             log.debug("Received chunk header data: %r" % chunk_header)
             chunk_size, = struct.unpack_from(">H", chunk_header)
 
             # Receive chunk data
             if chunk_size > 0:
-                chunk_data = self.socket.recv(chunk_size)
+                chunk_data = self._recv(chunk_size)
                 log.debug("Received chunk data: %r" % chunk_data)
                 raw.write(chunk_data)
             else:
@@ -293,6 +316,10 @@ When a `00 00` chunk header is encountered, the chunks for that message can be c
 
         return signature, fields
 ----
+
+NOTE: Depending on your language of implementation, there are some workarounds that may need to be employed when working with sockets.
+In the code above, the http://pubs.opengroup.org/onlinepubs/9699919799/functions/select.html[select] API is used to perform repeated reads until the required amount of data has been received.
+Without this, the non-blocking `recv` method may return an empty value if called before any data has been received.
 
 
 === 2.5. Unpacking messages from bytes
