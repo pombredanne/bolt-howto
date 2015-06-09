@@ -155,14 +155,14 @@ A zero-length chunk is used to signal the end of a message.
     def _send(self, *messages):
         """ Send one or more messages to the server.
         """
-        raw = ChunkedIO()
+        raw = ChunkWriter()
         packer = Packer(raw)
 
         for message in messages:
             packer.pack(message)
             raw.flush(zero_chunk=True)
 
-        data = raw.getvalue()
+        data = raw.to_bytes()
         log.debug("Sending request data: %r" % data)
         self.socket.sendall(data)
 
@@ -187,6 +187,69 @@ Each chunk consists of a two-byte header containing the amount of data in bytes 
 A zero-length chunk signifies the end of a message:
 
 image::images/chunked-init.png[]
+
+This chunking can be achieved by a writer that prepends the appropriate headers to each block of data:
+
+[source,python]
+----
+class ChunkWriter(object):
+    """ Writer for chunked data.
+    """
+
+    max_chunk_size = 65535
+
+    def __init__(self):
+        self.raw = BytesIO()
+        self.output_buffer = []
+        self.output_size = 0
+
+    def write(self, b):
+        """ Write some bytes, splitting into chunks if necessary.
+        """
+        max_chunk_size = self.max_chunk_size
+        output_buffer = self.output_buffer
+        while b:
+            size = len(b)
+            future_size = self.output_size + size
+            if future_size >= max_chunk_size:
+                end = max_chunk_size - self.output_size
+                output_buffer.append(b[:end])
+                self.output_size = max_chunk_size
+                b = b[end:]
+                self.flush()
+            else:
+                output_buffer.append(b)
+                self.output_size = future_size
+                b = b""
+
+    def flush(self, zero_chunk=False):
+        """ Flush everything written since the last chunk to the
+        stream, followed by a zero-chunk if required.
+        """
+        output_buffer = self.output_buffer
+        if output_buffer:
+            lines = [struct.pack(">H", self.output_size)] + output_buffer
+        else:
+            lines = []
+        if zero_chunk:
+            lines.append(b"\x00\x00")
+        if lines:
+            self.raw.writelines(lines)
+            self.raw.flush()
+            del output_buffer[:]
+            self.output_size = 0
+
+    def to_bytes(self):
+        """ Extract the written data as bytes.
+        """
+        return self.raw.getvalue()
+
+    def close(self, zero_chunk=False):
+        """ Close the stream.
+        """
+        self.flush(zero_chunk=zero_chunk)
+        self.raw.close()
+----
 
 
 === 2.4. Receiving a response (in chunks)

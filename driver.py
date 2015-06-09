@@ -173,16 +173,14 @@ def hydrated(obj):
         return obj
 
 
-class ChunkedIO(BytesIO):
-    """ I/O stream for writing chunked data.
+class ChunkWriter(object):
+    """ Writer for chunked data.
     """
 
     max_chunk_size = 65535
 
-    def __init__(self, *args, **kwargs):
-        super(ChunkedIO, self).__init__(*args, **kwargs)
-        self.input_buffer = []
-        self.input_size = 0
+    def __init__(self):
+        self.raw = BytesIO()
         self.output_buffer = []
         self.output_size = 0
 
@@ -217,16 +215,21 @@ class ChunkedIO(BytesIO):
         if zero_chunk:
             lines.append(b"\x00\x00")
         if lines:
-            BytesIO.writelines(self, lines)
-            BytesIO.flush(self)
+            self.raw.writelines(lines)
+            self.raw.flush()
             del output_buffer[:]
             self.output_size = 0
+
+    def to_bytes(self):
+        """ Extract the written data as bytes.
+        """
+        return self.raw.getvalue()
 
     def close(self, zero_chunk=False):
         """ Close the stream.
         """
         self.flush(zero_chunk=zero_chunk)
-        BytesIO.close(self)
+        self.raw.close()
 
 
 class ConnectionV1(object):
@@ -239,21 +242,21 @@ class ConnectionV1(object):
         self.socket = s
         log.info("NDPv1 connection established!")
         self.init("ExampleDriver/1.0")
-    
+
     def _send(self, *messages):
         """ Send one or more messages to the server.
         """
-        raw = ChunkedIO()
+        raw = ChunkWriter()
         packer = Packer(raw)
-        
+
         for message in messages:
             packer.pack(message)
             raw.flush(zero_chunk=True)
 
-        data = raw.getvalue()
+        data = raw.to_bytes()
         log.debug("Sending request data: %r" % data)
         self.socket.sendall(data)
-        
+
         raw.close()
 
     def _recv(self):
@@ -305,7 +308,7 @@ class ConnectionV1(object):
     def run(self, statement, parameters):
         """ Run a parameterised Cypher statement.
         """
-    
+
         # Ensure the statement is a Unicode value
         if isinstance(statement, bytes):
             statement = statement.decode("UTF-8")
@@ -369,7 +372,7 @@ def connect(host, port):
     # Establish a connection to the host and port specified
     log.info("Creating connection to %s on port %d" % (host, port))
     s = socket.create_connection((host, port))
-    
+
     # Send details of the protocol versions supported
     supported_versions = [1, 0, 0, 0]
     log.info("Supported protocol versions are: %r" % supported_versions)
