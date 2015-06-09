@@ -254,6 +254,9 @@ class ChunkWriter(object):
 
 === 2.4. Receiving a response (in chunks)
 
+To read a chunked response, simply alternate between reading the two-byte header and the variable length chunk data.
+When a `00 00` chunk header is encountered, the chunks for that message can be concatenated and unpacked.
+
 [source,python]
 ----
     def _recv(self):
@@ -284,7 +287,7 @@ class ChunkWriter(object):
         signature, fields = next(unpack())
         raw.close()
 
-        # Acknowledge failure immediately
+        # Acknowledge any failures immediately
         if signature == FAILURE:
             self.ack_failure()
 

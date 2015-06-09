@@ -287,7 +287,7 @@ class ConnectionV1(object):
         signature, fields = next(unpack())
         raw.close()
 
-        # Acknowledge failure immediately
+        # Acknowledge any failures immediately
         if signature == FAILURE:
             self.ack_failure()
 
