@@ -329,7 +329,7 @@ Each message structure contains a signature byte and a set of fields that corres
 
 The table below shows all response messages that may be sent by the server:
 
-[cols="^10,<20,<60,^10",options="header"]
+[cols="^10,<30,<50,^10",options="header"]
 |===
 | Signature | Message | Description | Type
 
