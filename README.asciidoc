@@ -50,7 +50,7 @@ a	b
 ----
 
 For testing purposes, a couple of other command line flags are available.
-Statements can be run multiple times with the `-x` option; in conjunction with the `-q` option to suppress output, execution times can be derived:
+Statements can be run multiple times with the `-x` option; in conjunction with the `-q` option to suppress output, this can be used to analyse performance:
 
 [source, bash]
 ----
