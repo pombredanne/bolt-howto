@@ -437,7 +437,7 @@ When a `FAILURE` response is returned by the server, all subsequent requests wil
 This can be achieved by sending an `ACK_FAILURE` message which should result in a `SUCCESS` response and resumption of normal service.
 If an `ACK_FAILURE` is sent but there is no outstanding failure to acknowledge, a `FAILURE` will be returned instead.
 
-The example driver acknowledges all `FAILURE`s as soon as they are received through the `ack_failure` method:
+The example driver acknowledges all `FAILURE` messages as soon as they are received through the `ack_failure` method:
 
 [source,python]
 ----
