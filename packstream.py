@@ -29,12 +29,10 @@ from struct import pack as struct_pack, unpack as struct_unpack
 import sys
 
 if sys.version_info >= (3,):
-    BYTES_TYPE = bytes
-    TEXT_TYPE = str
     INTEGER_TYPE = int
+    TEXT_TYPE = str
 else:
     INTEGER_TYPE = (int, long)
-    BYTES_TYPE = str
     TEXT_TYPE = unicode
 
 __all__ = ["Packer", "pack", "packb", "Unpacker", "unpack", "unpackb"]
@@ -201,7 +199,7 @@ class Packer(object):
                 raise OverflowError("Integer %s out of range" % value)
 
         # Bytes
-        elif isinstance(value, BYTES_TYPE):
+        elif isinstance(value, bytes):
             self.pack_bytes_header(len(value))
             self.pack_raw(value)
 
