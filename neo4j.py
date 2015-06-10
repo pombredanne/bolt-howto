@@ -365,9 +365,11 @@ class Watcher(object):
 def main():
     parser = ArgumentParser(description="Execute one or more Cypher statements using NDP.")
     parser.add_argument("statement", nargs="+")
-    parser.add_argument("-v", "--verbose", action="count")
     parser.add_argument("-H", "--host", default="localhost")
     parser.add_argument("-P", "--port", type=int, default=7687)
+    parser.add_argument("-q", "--quiet", action="store_true")
+    parser.add_argument("-v", "--verbose", action="count")
+    parser.add_argument("-x", "--times", type=int, default=1)
     args = parser.parse_args()
 
     if args.verbose:
@@ -376,16 +378,18 @@ def main():
 
     conn = connect(args.host, args.port)
     if conn:
-        for statement in args.statement:
-            try:
-                fields, records = conn.run(statement, {})
-            except CypherError as error:
-                stderr.write("%s: %s\r\n" % (error.code, error.message))
-            else:
-                stdout.write("%s\r\n" % "\t".join(fields))
-                for record in records:
-                    stdout.write("%s\r\n" % "\t".join(map(repr, record)))
-                stdout.write("\r\n")
+        for _ in range(args.times):
+            for statement in args.statement:
+                try:
+                    fields, records = conn.run(statement, {})
+                except CypherError as error:
+                    stderr.write("%s: %s\r\n" % (error.code, error.message))
+                else:
+                    if not args.quiet:
+                        stdout.write("%s\r\n" % "\t".join(fields))
+                        for record in records:
+                            stdout.write("%s\r\n" % "\t".join(map(repr, record)))
+                        stdout.write("\r\n")
         conn.close()
 
 
