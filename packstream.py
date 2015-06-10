@@ -18,6 +18,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+This module contains a full implementation of PackStream: the
+serialisation format built specifically for NDP.
+"""
+
 
 from io import BytesIO
 from struct import pack as struct_pack, unpack as struct_unpack
