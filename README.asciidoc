@@ -355,11 +355,32 @@ The table below shows all response messages that may be sent by the server:
 |===
 
 Each request message sent will result in a single summary message in response.
-For initialisation, this will be either a SUCCESS or a FAILURE message.
-Other message types may be returned for subsequent exchanges.
+For initialisation, this will be either a SUCCESS or a FAILURE message; other message types may be returned for subsequent exchanges.
 
 
 == 3. Running a Cypher statement
+
+Running a Cypher statement requires sending a pair of messages: `RUN` and `PULL_ALL`.
+`RUN` is used to start the Cypher execution but it is non-blocking so returns immediately with `SUCCESS` or `FAILURE`.
+When successful, the response contains a list of fields in the `SUCCESS` metadata that describe the structure of the upcoming records.
+`RUN` will fail if, for example, there is a syntax error in the statement.
+
+The second message, `PULL_ALL`, requests that all result items are streamed back to the client.
+This generates a response of zero or more `RECORD` messages followed by a trailing `SUCCESS` or `FAILURE` message.
+Each `RECORD` contains a set of values that can be paired with the fields from the `RUN` response to build a record map.
+The sequence below illustrates a typical exchange where three records are returned:
+
+----
+Client: RUN "MATCH (a:Person) RETURN a.name AS name, a.age AS age" {}
+Client: PULL_ALL
+Server: SUCCESS {"fields": ["name", "age"]}
+Server: RECORD ["Alice", 33]
+Server: RECORD ["Bob", 44]
+Server: RECORD ["Carol", 55]
+Server: SUCCESS {}
+----
+
+The code below shows the full `run` method from the example driver:
 
 [source,python]
 ----
@@ -397,11 +418,6 @@ Other message types may be returned for subsequent exchanges.
 
         return fields, records
 ----
-
-
-=== 3.1. RECORD messages
-
-TODO
 
 
 == 4. Acknowledging failure
