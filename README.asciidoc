@@ -4,12 +4,12 @@ This guide will show you how to build a NDP client driver for Neo4j from scratch
 The example code here is written in Python but the same principles should apply for any language.
 The only requirements for a driver project are raw socket capabilities so most languages should need no external library support.
 
-The `driver.py` file in this repository provides a command line Cypher client as a demonstration.
+The `neo4j.py` file in this repository provides a command line Cypher client as a demonstration.
 It can be used to run one or more Cypher statements, returning the results in tab-separated format:
 
 [source, bash]
 ----
-$ python driver.py "CREATE (a:Person {name:'Alice'})-[ab:KNOWS]->(b:Person {name:'Bob'}) RETURN a, b"
+$ python neo4j.py "CREATE (a:Person {name:'Alice'})-[ab:KNOWS]->(b:Person {name:'Bob'}) RETURN a, b"
 a	b
 <Node identity='node/20' labels={'Person'} properties={'name': 'Alice'}>	<Node identity='node/21' labels={'Person'} properties={'name': 'Bob'}>
 ----
@@ -18,7 +18,7 @@ For debugging purposes, the `-v` or `-vv` option flags can also be provided to i
 
 [source, bash]
 ----
-$ python driver.py -vv "CREATE (a:Person {name:'Alice'})-[ab:KNOWS]->(b:Person {name:'Bob'}) RETURN a, b"
+$ python neo4j.py -vv "CREATE (a:Person {name:'Alice'})-[ab:KNOWS]->(b:Person {name:'Bob'}) RETURN a, b"
 2015-06-09 12:25:53,544  Creating connection to localhost on port 7687
 2015-06-09 12:25:53,546  Supported protocol versions are: [1, 0, 0, 0]
 2015-06-09 12:25:53,546  Sending handshake data: b'\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
