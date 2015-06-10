@@ -275,7 +275,7 @@ in the table below:
   Marker | Size                                        | Maximum size
  ========|=============================================|=======================
   B0..BF | contained within low-order nibble of marker | 15 fields
-  DC     | 8-bit  big-endian unsigned integer          | 255 fields
+  DC     | 8-bit big-endian unsigned integer           | 255 fields
   DD     | 16-bit big-endian unsigned integer          | 65 535 fields
 
 The signature byte is used to identify the type or class of the structure.
