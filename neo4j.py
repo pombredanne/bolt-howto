@@ -291,7 +291,7 @@ class ConnectionV1(object):
 
 def connect(host, port):
     """ Connect and perform a handshake in order to return a valid
-    Connection object if a protocol version can be agreed.
+    Connection object, assuming a protocol version can be agreed.
     """
 
     # Establish a connection to the host and port specified

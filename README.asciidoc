@@ -433,4 +433,30 @@ The code below shows the full `run` method from the example driver:
 
 == 4. Acknowledging failure
 
-TODO
+When a `FAILURE` response is returned by the server, all subsequent requests will be `IGNORED` until the client has acknowledged the failure.
+This can be achieved by sending an `ACK_FAILURE` message which should result in a `SUCCESS` response and resumption of normal service.
+If an `ACK_FAILURE` is sent but there is no outstanding failure to acknowledge, a `FAILURE` will be returned instead.
+
+The example driver acknowledges all `FAILURE`s as soon as they are received through the `ack_failure` method:
+
+[source,python]
+----
+    def ack_failure(self):
+        """ Send an acknowledgement for a previous failure.
+        """
+        log.info("Acknowledging failure")
+        self._send_messages((ACK_FAILURE, ()))
+
+        # Skip any ignored responses
+        signature, _ = self._recv_message()
+        while signature == IGNORED:
+            signature, _ = self._recv_message()
+
+        # Check the acknowledgement was successful
+        if signature == SUCCESS:
+            log.info("Acknowledgement successful")
+        else:
+            raise ProtocolError("ACK_FAILURE was unsuccessful")
+----
+
+This method skips any outstanding `IGNORED` responses from previous requests before checking for `SUCCESS`
