@@ -320,6 +320,11 @@ class ConnectionV1(object):
     def init(self, user_agent):
         """ Initialise a connection with a user agent string.
         """
+
+        # Ensure the user agent is a Unicode value
+        if isinstance(user_agent, bytes):
+            user_agent = user_agent.decode("UTF-8")
+
         log.info("Initialising connection")
         self._send_messages((INIT, (user_agent,)))
 
