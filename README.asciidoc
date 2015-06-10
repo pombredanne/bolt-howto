@@ -184,7 +184,7 @@ A zero-length chunk is used to signal the end of a message.
 === 2.2. Packing messages as bytes
 
 NDP uses a custom serialisation format, called link:packstream.py[PackStream].
-This is based heavily on MessagePack but can model any Cypher data type though its _structure_ mechanism.
+This is based heavily on http://msgpack.org/[MessagePack] but can model any Cypher data type though its _structure_ mechanism.
 Structures are also used to represent messages, with each carrying a signature byte that denotes type.
 The INIT message is structured as follows:
 
