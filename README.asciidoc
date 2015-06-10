@@ -459,4 +459,4 @@ The example driver acknowledges all `FAILURE` messages as soon as they are recei
             raise ProtocolError("ACK_FAILURE was unsuccessful")
 ----
 
-This method skips any outstanding `IGNORED` responses from previous requests before checking for `SUCCESS`
+This method skips any outstanding `IGNORED` responses from previous requests before checking for `SUCCESS`.
