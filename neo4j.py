@@ -138,7 +138,6 @@ class ConnectionV1(object):
 
     def __init__(self, s):
         self.socket = s
-        log.info("NDPv1 connection established!")
         self.init("ExampleDriver/1.0")
 
     def _send_messages(self, *messages):
@@ -152,7 +151,7 @@ class ConnectionV1(object):
             raw.flush(zero_chunk=True)
 
         data = raw.to_bytes()
-        log.debug("Sending request data: %r", data)
+        log.debug("C: %r", data)
         self.socket.sendall(data)
 
         raw.close()
@@ -191,13 +190,13 @@ class ConnectionV1(object):
         while more:
             # Receive chunk header to establish size of chunk that follows
             chunk_header = self._recv(2)
-            log.debug("Received chunk header data: %r", chunk_header)
             chunk_size, = struct.unpack_from(">H", chunk_header)
+            log.debug("S: %r (%dB)", chunk_header, chunk_size)
 
             # Receive chunk data
             if chunk_size > 0:
                 chunk_data = self._recv(chunk_size)
-                log.debug("Received chunk data: %r", chunk_data)
+                log.debug("S: %r", chunk_data)
                 raw.write(chunk_data)
             else:
                 more = False
@@ -222,14 +221,15 @@ class ConnectionV1(object):
         if isinstance(user_agent, bytes):
             user_agent = user_agent.decode("UTF-8")
 
-        log.info("Initialising connection")
+        log.info("C: INIT %r", user_agent)
         self._send_messages((INIT, (user_agent,)))
 
         signature, (data,) = self._recv_message()
         if signature == SUCCESS:
-            log.info("Initialisation successful")
+            log.info("S: SUCCESS %r", data)
         else:
-            raise ProtocolError("INIT was unsuccessful: %r" % data)
+            log.info("S: FAILURE %r", data)
+            raise ProtocolError("Initialisation failed")
 
     def run(self, statement, parameters):
         """ Run a parameterised Cypher statement.
@@ -239,15 +239,17 @@ class ConnectionV1(object):
         if isinstance(statement, bytes):
             statement = statement.decode("UTF-8")
 
-        log.info("Running statement %r with parameters %r", statement, parameters)
+        log.info("C: RUN %r %r", statement, parameters)
+        log.info("C: PULL_ALL")
         self._send_messages((RUN, (statement, parameters)),
                             (PULL_ALL, ()))
 
         signature, (data,) = self._recv_message()
         if signature == SUCCESS:
-            fields = tuple(data["fields"])
-            log.info("Statement ran successfully with field list %r", fields)
+            fields = data["fields"]
+            log.info("S: SUCCESS %r", fields)
         else:
+            log.info("S: FAILURE %r", data)
             raise CypherError(data)
 
         records = []
@@ -255,12 +257,13 @@ class ConnectionV1(object):
         while more:
             signature, (data,) = self._recv_message()
             if signature == RECORD:
-                log.info("Record received with value list %r", data)
+                log.info("S: RECORD %r", data)
                 records.append(tuple(map(hydrated, data)))
             elif signature == SUCCESS:
-                log.info("All records successfully received: %r", data)
+                log.info("S: SUCCESS %r", data)
                 more = False
             else:
+                log.info("S: FAILURE %r", data)
                 raise CypherError(data)
 
         return fields, records
@@ -268,24 +271,27 @@ class ConnectionV1(object):
     def ack_failure(self):
         """ Send an acknowledgement for a previous failure.
         """
-        log.info("Acknowledging failure")
+        log.info("C: ACK_FAILURE")
         self._send_messages((ACK_FAILURE, ()))
 
         # Skip any ignored responses
-        signature, _ = self._recv_message()
+        signature, fields = self._recv_message()
         while signature == IGNORED:
-            signature, _ = self._recv_message()
+            log.info("S: IGNORED")
+            signature, fields = self._recv_message()
 
         # Check the acknowledgement was successful
+        data, = fields
         if signature == SUCCESS:
-            log.info("Acknowledgement successful")
+            log.info("S: SUCCESS %r", data)
         else:
-            raise ProtocolError("ACK_FAILURE was unsuccessful")
+            log.info("S: FAILURE %r", data)
+            raise ProtocolError("Could not acknowledge failure")
 
     def close(self):
         """ Shut down and close the connection.
         """
-        log.info("Shutting down and closing connection")
+        log.info("~~ [CLOSE]")
         self.socket.shutdown(SHUT_RDWR)
         self.socket.close()
 
@@ -296,26 +302,26 @@ def connect(host, port):
     """
 
     # Establish a connection to the host and port specified
-    log.info("Creating connection to %s on port %d", host, port)
+    log.info("~~ [CONNECT] %s %d", host, port)
     s = create_connection((host, port))
 
     # Send details of the protocol versions supported
     supported_versions = [1, 0, 0, 0]
-    log.info("Supported protocol versions are: %r", supported_versions)
+    log.info("C: [HANDSHAKE] %r", supported_versions)
     data = b"".join(struct.pack(">I", version) for version in supported_versions)
-    log.debug("Sending handshake data: %r", data)
+    log.debug("C: %r", data)
     s.sendall(data)
     
     # Handle the handshake response
     data = s.recv(4)
-    log.debug("Received handshake data: %r", data)
+    log.debug("S: %r", data)
     agreed_version, = struct.unpack(">I", data)
+    log.info("S: [HANDSHAKE] %d", agreed_version)
     if agreed_version == 0:
-        log.warning("Closing connection as no protocol version could be agreed")
+        log.debug("~~ [CLOSE]")
         s.shutdown(SHUT_RDWR)
         s.close()
     else:
-        log.info("Protocol version %d agreed", agreed_version)
         return ConnectionV1(s)
 
 
