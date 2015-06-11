@@ -62,6 +62,7 @@ class ProtocolError(Exception):
 class CypherError(Exception):
 
     code = None
+    message = None
 
     def __init__(self, data):
         super(CypherError, self).__init__(data.get("message"))
@@ -151,7 +152,7 @@ class ConnectionV1(object):
             raw.flush(zero_chunk=True)
 
         data = raw.to_bytes()
-        log.debug("Sending request data: %r" % data)
+        log.debug("Sending request data: %r", data)
         self.socket.sendall(data)
 
         raw.close()
@@ -190,13 +191,13 @@ class ConnectionV1(object):
         while more:
             # Receive chunk header to establish size of chunk that follows
             chunk_header = self._recv(2)
-            log.debug("Received chunk header data: %r" % chunk_header)
+            log.debug("Received chunk header data: %r", chunk_header)
             chunk_size, = struct.unpack_from(">H", chunk_header)
 
             # Receive chunk data
             if chunk_size > 0:
                 chunk_data = self._recv(chunk_size)
-                log.debug("Received chunk data: %r" % chunk_data)
+                log.debug("Received chunk data: %r", chunk_data)
                 raw.write(chunk_data)
             else:
                 more = False
@@ -238,14 +239,14 @@ class ConnectionV1(object):
         if isinstance(statement, bytes):
             statement = statement.decode("UTF-8")
 
-        log.info("Running statement %r with parameters %r" % (statement, parameters))
+        log.info("Running statement %r with parameters %r", statement, parameters)
         self._send_messages((RUN, (statement, parameters)),
                             (PULL_ALL, ()))
 
         signature, (data,) = self._recv_message()
         if signature == SUCCESS:
             fields = tuple(data["fields"])
-            log.info("Statement ran successfully with field list %r" % (fields,))
+            log.info("Statement ran successfully with field list %r", fields)
         else:
             raise CypherError(data)
 
@@ -254,10 +255,10 @@ class ConnectionV1(object):
         while more:
             signature, (data,) = self._recv_message()
             if signature == RECORD:
-                log.info("Record received with value list %r" % data)
+                log.info("Record received with value list %r", data)
                 records.append(tuple(map(hydrated, data)))
             elif signature == SUCCESS:
-                log.info("All records successfully received: %r" % data)
+                log.info("All records successfully received: %r", data)
                 more = False
             else:
                 raise CypherError(data)
@@ -295,26 +296,26 @@ def connect(host, port):
     """
 
     # Establish a connection to the host and port specified
-    log.info("Creating connection to %s on port %d" % (host, port))
+    log.info("Creating connection to %s on port %d", host, port)
     s = create_connection((host, port))
 
     # Send details of the protocol versions supported
     supported_versions = [1, 0, 0, 0]
-    log.info("Supported protocol versions are: %r" % supported_versions)
+    log.info("Supported protocol versions are: %r", supported_versions)
     data = b"".join(struct.pack(">I", version) for version in supported_versions)
-    log.debug("Sending handshake data: %r" % data)
+    log.debug("Sending handshake data: %r", data)
     s.sendall(data)
     
     # Handle the handshake response
     data = s.recv(4)
-    log.debug("Received handshake data: %r" % data)
+    log.debug("Received handshake data: %r", data)
     agreed_version, = struct.unpack(">I", data)
     if agreed_version == 0:
         log.warning("Closing connection as no protocol version could be agreed")
         s.shutdown(SHUT_RDWR)
         s.close()
     else:
-        log.info("Protocol version %d agreed" % agreed_version)
+        log.info("Protocol version %d agreed", agreed_version)
         return ConnectionV1(s)
 
 
