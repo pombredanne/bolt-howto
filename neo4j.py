@@ -32,13 +32,21 @@ import logging
 from select import select
 from socket import create_connection, SHUT_RDWR
 import struct
-from sys import stdout, stderr
+from sys import stdout, stderr, version_info
 
 # Serialisation and deserialisation routines
 from packstream import Packer, Unpacker
 # Hydration function for turning structures into their actual types
 from typesystem import hydrated
 
+
+# Workaround for Python 2/3 type differences
+if version_info >= (3,):
+    integer = int
+    string = str
+else:
+    integer = (int, long)
+    string = (str, unicode)
 
 # Signature bytes for each message type
 INIT = b"\x01"             # 0000 0001 // INIT <user_agent>
@@ -69,6 +77,63 @@ class CypherError(Exception):
         for key, value in data.items():
             if not key.startswith("_"):
                 setattr(self, key, value)
+
+
+class Record(object):
+    """ Record object for storing result values along with field names.
+    """
+
+    def __init__(self, fields, values):
+        self.__fields__ = fields
+        self.__values__ = values
+
+    def __repr__(self):
+        values = self.__values__
+        s = []
+        for i, field in enumerate(self.__fields__):
+            value = values[i]
+            if isinstance(value, tuple):
+                signature, _ = value
+                if signature == b"N":
+                    s.append("%s=<Node>" % (field,))
+                elif signature == b"R":
+                    s.append("%s=<Relationship>" % (field,))
+                else:
+                    s.append("%s=<?>" % (field,))
+            else:
+                s.append("%s=%r" % (field, value))
+        return "<Record %s>" % " ".join(s)
+
+    def __eq__(self, other):
+        try:
+            return vars(self) == vars(other)
+        except TypeError:
+            return tuple(self) == tuple(other)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __len__(self):
+        return self.__fields__.__len__()
+
+    def __getitem__(self, item):
+        if isinstance(item, string):
+            return getattr(self, item)
+        elif isinstance(item, integer):
+            return getattr(self, self.__fields__[item])
+        else:
+            raise LookupError(item)
+
+    def __getattr__(self, item):
+        try:
+            i = self.__fields__.index(item)
+        except ValueError:
+            raise AttributeError("No field %r" % item)
+        else:
+            value = self.__values__[i]
+            if isinstance(value, tuple):
+                value = self.__values__[i] = hydrated(value)
+            return value
 
 
 class ChunkWriter(object):
@@ -256,7 +321,7 @@ class ConnectionV1(object):
             signature, (data,) = self._recv_message()
             if signature == RECORD:
                 log.info("S: RECORD %r", data)
-                records.append(tuple(map(hydrated, data)))
+                records.append(Record(fields, tuple(map(hydrated, data))))
             elif signature == SUCCESS:
                 log.info("S: SUCCESS %r", data)
                 more = False
@@ -264,7 +329,7 @@ class ConnectionV1(object):
                 log.info("S: FAILURE %r", data)
                 raise CypherError(data)
 
-        return fields, records
+        return records
 
     def ack_failure(self):
         """ Send an acknowledgement for a previous failure.
@@ -386,13 +451,14 @@ def main():
         for _ in range(args.times):
             for statement in args.statement:
                 try:
-                    fields, records = conn.run(statement, {})
+                    records = conn.run(statement, {})
                 except CypherError as error:
                     stderr.write("%s: %s\r\n" % (error.code, error.message))
                 else:
                     if not args.quiet:
-                        stdout.write("%s\r\n" % "\t".join(fields))
-                        for record in records:
+                        for i, record in enumerate(records):
+                            if i == 0:
+                                stdout.write("%s\r\n" % "\t".join(record.__fields__))
                             stdout.write("%s\r\n" % "\t".join(map(repr, record)))
                         stdout.write("\r\n")
         conn.close()
