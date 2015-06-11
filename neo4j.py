@@ -161,21 +161,19 @@ class ConnectionV1(object):
         """
         socket = self.socket
 
-        # Try to read the required amount of data
-        data = socket.recv(size)
-        size -= len(data)
-
-        # If more is needed, keep reading until all data has been received
+        # If data is needed, keep reading until all bytes have been received
+        data = b""
         while size:
-            # Check for available network data
-            ready_to_read, _, _ = select((socket,), (), (), 0)
-            while not ready_to_read:
-                ready_to_read, _, _ = select((socket,), (), (), 0)
-
             # Read up to the required amount remaining
             b = socket.recv(size)
             size -= len(b)
             data += b
+
+            # If more is required, wait for available network data
+            if size:
+                ready_to_read, _, _ = select((socket,), (), (), 0)
+                while not ready_to_read:
+                    ready_to_read, _, _ = select((socket,), (), (), 0)
 
         return data
 
