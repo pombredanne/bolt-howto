@@ -18,35 +18,37 @@ For debugging purposes, the `-v` or `-vv` option flags can also be provided to i
 
 [source, bash]
 ----
-$ python neo4j.py -vv "CREATE (a:Person {name:'Alice'})-[ab:KNOWS]->(b:Person {name:'Bob'}) RETURN a, b"
-2015-06-09 12:25:53,544  Creating connection to localhost on port 7687
-2015-06-09 12:25:53,546  Supported protocol versions are: [1, 0, 0, 0]
-2015-06-09 12:25:53,546  Sending handshake data: b'\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-2015-06-09 12:25:53,580  Received handshake data: b'\x00\x00\x00\x01'
-2015-06-09 12:25:53,580  Protocol version 1 agreed
-2015-06-09 12:25:53,580  NDPv1 connection established!
-2015-06-09 12:25:53,580  Initialising connection
-2015-06-09 12:25:53,580  Sending request data: b'\x00\x15\xb1\x01\xd0\x11ExampleDriver/1.0\x00\x00'
-2015-06-09 12:25:53,584  Received chunk header data: b'\x00\x03'
-2015-06-09 12:25:53,584  Received chunk data: b'\xb1p\xa0'
-2015-06-09 12:25:53,584  Received chunk header data: b'\x00\x00'
-2015-06-09 12:25:53,584  Initialisation successful
-2015-06-09 12:25:53,584  Running statement "CREATE (a:Person {name:'Alice'})-[ab:KNOWS]->(b:Person {name:'Bob'}) RETURN a, b" with parameters {}
-2015-06-09 12:25:53,584  Sending request data: b"\x00U\xb2\x10\xd0PCREATE (a:Person {name:'Alice'})-[ab:KNOWS]->(b:Person {name:'Bob'}) RETURN a, b\xa0\x00\x00\x00\x02\xb0?\x00\x00"
-2015-06-09 12:25:54,551  Received chunk header data: b'\x00\x0f'
-2015-06-09 12:25:54,551  Received chunk data: b'\xb1p\xa1\x86fields\x92\x81a\x81b'
-2015-06-09 12:25:54,551  Received chunk header data: b'\x00\x00'
-2015-06-09 12:25:54,551  Statement ran successfully with field list ('a', 'b')
-2015-06-09 12:25:54,551  Received chunk header data: b'\x00='
-2015-06-09 12:25:54,551  Received chunk data: b'\xb1q\x92\xb3N\x87node/22\x91\x86Person\xa1\x84name\x85Alice\xb3N\x87node/23\x91\x86Person\xa1\x84name\x83Bob'
-2015-06-09 12:25:54,551  Received chunk header data: b'\x00\x00'
-2015-06-09 12:25:54,552  Record received with value list [(b'N', ('node/22', ['Person'], {'name': 'Alice'})), (b'N', ('node/23', ['Person'], {'name': 'Bob'}))]
-2015-06-09 12:25:54,552  Received chunk header data: b'\x00\x03'
-2015-06-09 12:25:54,552  Received chunk data: b'\xb1p\xa0'
-2015-06-09 12:25:54,552  Received chunk header data: b'\x00\x00'
-2015-06-09 12:25:54,552  All records successfully received: {}
-a	b
-<Node identity='node/22' labels={'Person'} properties={'name': 'Alice'}>	<Node identity='node/23' labels={'Person'} properties={'name': 'Bob'}>
+$ python neo4j.py -vv "CREATE (a:Person {name:'Alice'}) RETURN a"
+2015-06-11 12:48:57,074  ~~ [CONNECT] localhost 7687
+2015-06-11 12:48:57,076  C: [HANDSHAKE] [1, 0, 0, 0]
+2015-06-11 12:48:57,076  C: b'\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+2015-06-11 12:48:57,076  S: b'\x00\x00\x00\x01'
+2015-06-11 12:48:57,076  S: [HANDSHAKE] 1
+2015-06-11 12:48:57,077  C: INIT 'ExampleDriver/1.0'
+2015-06-11 12:48:57,077  C: b'\x00\x15\xb1\x01\xd0\x11ExampleDriver/1.0\x00\x00'
+2015-06-11 12:48:57,077  S: b'\x00\x03' (3B)
+2015-06-11 12:48:57,077  S: b'\xb1p\xa0'
+2015-06-11 12:48:57,077  S: b'\x00\x00' (0B)
+2015-06-11 12:48:57,077  S: SUCCESS {}
+2015-06-11 12:48:57,077  C: RUN "CREATE (a:Person {name:'Alice'}) RETURN a" {}
+2015-06-11 12:48:57,077  C: PULL_ALL
+2015-06-11 12:48:57,078  C: b"\x00.\xb2\x10\xd0)CREATE (a:Person {name:'Alice'}) RETURN a\xa0\x00\x00\x00\x02\xb0?\x00\x00"
+2015-06-11 12:48:57,095  S: b'\x00\r' (13B)
+2015-06-11 12:48:57,095  S: b'\xb1p\xa1\x86fields\x91\x81a'
+2015-06-11 12:48:57,095  S: b'\x00\x00' (0B)
+2015-06-11 12:48:57,095  S: SUCCESS ['a']
+2015-06-11 12:48:57,095  S: b'\x00!' (33B)
+2015-06-11 12:48:57,095  S: b'\xb1q\x91\xb3N\x87node/17\x91\x86Person\xa1\x84name\x85Alice'
+2015-06-11 12:48:57,095  S: b'\x00\x00' (0B)
+2015-06-11 12:48:57,095  S: RECORD [(b'N', ('node/17', ['Person'], {'name': 'Alice'}))]
+2015-06-11 12:48:57,096  S: b'\x00\x03' (3B)
+2015-06-11 12:48:57,096  S: b'\xb1p\xa0'
+2015-06-11 12:48:57,096  S: b'\x00\x00' (0B)
+2015-06-11 12:48:57,096  S: SUCCESS {}
+a
+<Node identity='node/17' labels={'Person'} properties={'name': 'Alice'}>
+
+2015-06-11 12:48:57,096  ~~ [CLOSE]
 ----
 
 For testing purposes, a couple of other command line flags are available.
