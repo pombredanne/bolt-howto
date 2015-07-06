@@ -74,6 +74,10 @@ These contain a version of NDP that listens by default on port 7687.
 
 NOTE: All protocol values are sent and received in big-endian order unless otherwise noted.
 
+Starting with version 1, each release of NDP is assigned a unique, integral version number.
+This number and the associated specification refers to every aspect of the protocol except for the handshake, which is unversioned.
+Driver authors should note that subsequent protocol versions are likely to be incompatible and with the exception of the handshake, there is no guarantee that any transport or serialisation code can be shared across versions.
+
 The handshake is used to determine which version of NDP should be used for that session.
 This takes the form of an exchange of protocol version numbers, each represented as a 32-bit unsigned integer.
 Firstly, the client sends exactly four possible version numbers in order of preference, using zeroes to pad if necessary.
