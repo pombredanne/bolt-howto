@@ -310,7 +310,7 @@ class ConnectionV1(object):
         signature, (data,) = self._recv_message()
         if signature == SUCCESS:
             fields = data["fields"]
-            log.info("S: SUCCESS %r", fields)
+            log.info("S: SUCCESS %r", data)
         else:
             log.info("S: FAILURE %r", data)
             raise CypherError(data)
