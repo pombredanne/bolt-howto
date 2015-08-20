@@ -1,6 +1,6 @@
-= How to Build an NDP Driver
+= How to Build a Neo4j Bolt Protocol Driver
 
-This guide will show you how to build a NDP client driver for Neo4j from scratch.
+This guide will show you how to build a client driver for Neo4j's new remoting protocol, Bolt, from scratch.
 The example code here is written in Python but the same principles should apply for any language.
 The only requirements for a driver project are raw socket capabilities so most languages should need no external library support.
 
@@ -67,18 +67,18 @@ sys     0m0.136s
 == 0. Downloading the server
 
 Alpha releases of Neo4j 3.0 can be found at http://alpha.neotechnology.com.s3-website-eu-west-1.amazonaws.com/.
-These contain a version of NDP that listens by default on port 7687.
+These contain a version of Bolt that listens by default on port 7687.
 
 
 == 1. Connecting and performing a handshake
 
 NOTE: All protocol values are sent and received in big-endian order unless otherwise noted.
 
-Starting with version 1, each release of NDP is assigned a unique, integral version number.
+Starting with version 1, each release of Bolt is assigned a unique, integral version number.
 This number and the associated specification refers to every aspect of the protocol except for the handshake, which is unversioned.
 Driver authors should note that subsequent protocol versions are likely to be incompatible and with the exception of the handshake, there is no guarantee that any transport or serialisation code can be shared across versions.
 
-The handshake is used to determine which version of NDP should be used for that session.
+The handshake is used to determine which version of Bolt should be used for that session.
 This takes the form of an exchange of protocol version numbers, each represented as a 32-bit unsigned integer.
 Firstly, the client sends exactly four possible version numbers in order of preference, using zeroes to pad if necessary.
 In return, the server responds with its selection.
@@ -145,7 +145,7 @@ class ConnectionV1(object):
 
     def __init__(self, s):
         self.socket = s
-        log.info("NDPv1 connection established!")
+        log.info("Bolt V1 connection established!")
         self.init("ExampleDriver/1.0")
 
     def init(self, user_agent):
@@ -189,7 +189,7 @@ A zero-length chunk is used to signal the end of a message.
 
 === 2.2. Packing messages as bytes
 
-NDP uses a custom serialisation format, called link:packstream.py[PackStream].
+Bolt uses a custom serialisation format, called link:packstream.py[PackStream].
 This is based heavily on http://msgpack.org/[MessagePack] but can model any Cypher data type though its _structure_ mechanism.
 Structures are also used to represent messages, with each carrying a signature byte that denotes type.
 The INIT message is structured as follows:

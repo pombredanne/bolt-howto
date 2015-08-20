@@ -19,7 +19,7 @@
 # limitations under the License.
 
 """
-This module contains the main NDP driver components as well as several
+This module contains the main Bolt driver components as well as several
 helper and exception classes. The main entry point is the `connect`
 function which returns an instance of the ConnectionV1 class that can
 be used for running Cypher statements.
@@ -433,7 +433,7 @@ class Watcher(object):
 
 
 def main():
-    parser = ArgumentParser(description="Execute one or more Cypher statements using NDP.")
+    parser = ArgumentParser(description="Execute one or more Cypher statements using Bolt.")
     parser.add_argument("statement", nargs="+")
     parser.add_argument("-H", "--host", default="localhost")
     parser.add_argument("-P", "--port", type=int, default=7687)
