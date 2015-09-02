@@ -62,6 +62,13 @@ FAILURE = b"\x7F"          # 0111 1111 // FAILURE <metadata>
 log = logging.getLogger("neo4j")
 
 
+def hex2(x):
+    if x < 0x10:
+        return "0" + hex(x)[2:].upper()
+    else:
+        return hex(x)[2:].upper()
+
+
 class ProtocolError(Exception):
 
     pass
@@ -203,7 +210,7 @@ class ConnectionV1(object):
             raw.flush(zero_chunk=True)
 
         data = raw.to_bytes()
-        log.debug("C: %r", data)
+        log.debug("C: %s", ":".join(map(hex2, data)))
         self.socket.sendall(data)
 
         raw.close()
@@ -241,12 +248,12 @@ class ConnectionV1(object):
             # Receive chunk header to establish size of chunk that follows
             chunk_header = self._recv(2)
             chunk_size, = struct.unpack_from(">H", chunk_header)
-            log.debug("S: %r (%dB)", chunk_header, chunk_size)
+            log.debug("S: %s (chunk size %d)", ":".join(map(hex2, chunk_header)), chunk_size)
 
             # Receive chunk data
             if chunk_size > 0:
                 chunk_data = self._recv(chunk_size)
-                log.debug("S: %r", chunk_data)
+                log.debug("S: %s", ":".join(map(hex2, chunk_data)))
                 raw.write(chunk_data)
             else:
                 more = False
@@ -359,16 +366,16 @@ def connect(host, port):
     supported_versions = [1, 0, 0, 0]
     log.info("C: [HANDSHAKE] %r", supported_versions)
     data = b"".join(struct.pack(">I", version) for version in supported_versions)
-    log.debug("C: %r", data)
+    log.debug("C: %s", ":".join(map(hex2, data)))
     s.sendall(data)
     
     # Handle the handshake response
     data = s.recv(4)
-    log.debug("S: %r", data)
+    log.debug("S: %s", ":".join(map(hex2, data)))
     agreed_version, = struct.unpack(">I", data)
     log.info("S: [HANDSHAKE] %d", agreed_version)
     if agreed_version == 0:
-        log.debug("~~ [CLOSE]")
+        log.info("~~ [CLOSE]")
         s.shutdown(SHUT_RDWR)
         s.close()
     else:
