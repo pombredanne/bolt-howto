@@ -1,3 +1,5 @@
+IMPORTANT: This repository is no longer updated. Please head over to https://github.com/neo4j-contrib/boltkit instead.
+
 = How to Build a Neo4j Bolt Protocol Driver
 
 This guide will show you how to build a client driver for Neo4j's new remoting protocol, Bolt, from scratch.
